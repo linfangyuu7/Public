@@ -61,7 +61,7 @@ def new(x_train, y_train, x_val, y_val, h5=WEIGHTS, nb_epoch = 20):
     # training
     return train(model, x_train, y_train, x_val, y_val, h5, nb_epoch)
 
-def train(model, x_train, y_train, x_val, y_val, h5, nb_epoch):
+def train(model, x_train, y_train, h5, nb_epoch):
     # helper function for training a new model
     model = compile(model)
     model.fit(x_train, y_train, batch_size=batch_size, epochs=nb_epoch, validation_split=0.1)
