@@ -2,8 +2,7 @@
 https://github.com/shap/shap/blob/master/notebooks/image_examples/image_classification/Front%20Page%20DeepExplainer%20MNIST%20Example.ipynb
 '''
 # this is the code from here --> https://github.com/keras-team/keras/blob/master/examples/demo_mnist_convnet.py
-import warnings
-warnings.simplefilter("always")
+import os
 
 import keras
 import numpy as np
@@ -61,11 +60,20 @@ def new(x_train, y_train, x_val, y_val, h5=WEIGHTS, nb_epoch = 20):
     # training
     return train(model, x_train, y_train, x_val, y_val, h5, nb_epoch)
 
-def train(model, x_train, y_train, h5, nb_epoch):
+def train(model, x_train, y_train, h5, epochs, name4saving = 'epoch_{epoch:02d}-val_loss-{val_loss:.4f}.weights.h5', patience = 10):
     # helper function for training a new model
     model = compile(model)
-    model.fit(x_train, y_train, batch_size=batch_size, epochs=nb_epoch, validation_split=0.1)
     
+    # defining paths and callbacks
+    dir4saving = 'path2checkpoint/checkpoints'
+    os.makedirs(dir4saving, exist_ok = True)
+
+    filepath = os.path.join(dir4saving, name4saving)
+    mcCallBack_loss = keras.callbacks.ModelCheckpoint(filepath, monitor = 'val_loss',
+                                                verbose = 1, save_weights_only = True,)
+    esCallBack = keras.callbacks.EarlyStopping(monitor = 'val_loss', verbose = 1, patience=patience)
+    hist = model.fit(x_test, y_test, batch_size=batch_size, epochs=epochs, validation_split=0.2,
+              callbacks=[esCallBack, mcCallBack_loss])    
     # save model
     model.save_weights(h5)
     return model
