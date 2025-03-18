@@ -72,7 +72,7 @@ def train(model, x_train, y_train, h5, epochs, name4saving = 'epoch_{epoch:02d}-
     mcCallBack_loss = keras.callbacks.ModelCheckpoint(filepath, monitor = 'val_loss',
                                                 verbose = 1, save_weights_only = True,)
     esCallBack = keras.callbacks.EarlyStopping(monitor = 'val_loss', verbose = 1, patience=patience)
-    hist = model.fit(x_test, y_test, batch_size=batch_size, epochs=epochs, validation_split=0.2,
+    hist = model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, validation_split=0.2,
               callbacks=[esCallBack, mcCallBack_loss])    
     # save model
     model.save_weights(h5)
