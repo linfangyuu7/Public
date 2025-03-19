@@ -34,7 +34,8 @@ def architecture():
     )
     return model
 
-def new(x_train, y_train, h5=WEIGHTS, nb_epoch = 20):
+def new(x_train, y_train, h5=WEIGHTS, nb_epoch = 20, 
+                      chk_pt = 'checkpoint', name4saving = 'epoch_{epoch:02d}.weights.h5', patience = 10):
     #train a new model
     model = architecture()
 
@@ -56,12 +57,11 @@ def new(x_train, y_train, h5=WEIGHTS, nb_epoch = 20):
     #This loss is equal to the negative log probability of the the true class: It is zero if the model is sure of the correct class.
     #This untrained model gives probabilities close to random (1/10 for each class), so the initial loss should be close to -tf.log(1/10) ~= 2.3.
     print("Check loss (should be close to 2.3): ", loss_fn(y_train[:1], predictions).numpy())
-    print(f'nb_epoch: {nb_epoch}')
     
     # training
-    return train(model, x_train, y_train, h5, nb_epoch)
+    return train(model, x_train, y_train, h5, nb_epoch, chk_pt, name4saving, patience)
 
-def train(model, x_train, y_train, h5, nb_epoch, name4saving = 'epoch_{epoch:02d}-val_loss-{val_loss:.4f}.weights.h5', patience = 10):
+def train(model, x_train, y_train, h5, nb_epoch, chk_pt, name4saving = 'epoch_{epoch:02d}-val_loss-{val_loss:.4f}.weights.h5', patience = 10):
     # helper function for training a new model
     model = compile(model)
     
@@ -73,7 +73,6 @@ def train(model, x_train, y_train, h5, nb_epoch, name4saving = 'epoch_{epoch:02d
     mcCallBack_loss = keras.callbacks.ModelCheckpoint(filepath, monitor = 'val_loss',
                                                 verbose = 1, save_weights_only = True,)
     esCallBack = keras.callbacks.EarlyStopping(monitor = 'val_loss', verbose = 1, patience=patience)
-    print(f'nb_epoch: {nb_epoch}')
     hist = model.fit(x_train, y_train, batch_size=batch_size, epochs=nb_epoch, validation_split=0.2,
               callbacks=[esCallBack, mcCallBack_loss])    
     # save model
@@ -83,7 +82,7 @@ def compile(model):
   # helper function for compiling a model
   model.compile( optimizer=keras.optimizers.Adam(),
     loss=keras.losses.SparseCategoricalCrossentropy(from_logits=True),
-    metrics=[keras.metrics.SparseCategoricalAccuracy()], )
+    metrics=['accuracy'], )
   return model
 
 def load(h5):
@@ -101,18 +100,6 @@ def evaluate(model, x, y):
     print('\n')
     print('Overall Test loss:', score[0])
     print('Overall Test accuracy:', score[1])
-
-
-def display_pattern(model, input_image, input_label, remarks=''):
-  #display the image in Jupyter notebook  
-  p = model(input_image).numpy() #convert from tensor to numpy
-  prediction = np.argmax(p)
-
-  a = np.squeeze(input_image)
-  plt.figure()
-  plt.imshow(a, cmap='gray', vmin=-1, vmax=1)
-  plt.title('{}\n Ground truth: {} \n Predicted: {}'.format(remarks, input_label, prediction))
-  plt.show()
 
 def get_clean_data_set():
   # get training, validation and test sets
