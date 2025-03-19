@@ -66,7 +66,8 @@ def train(model, x_train, y_train, h5, nb_epoch, chk_pt, name4saving = 'epoch_{e
     model = compile(model)
     
     # defining paths and callbacks
-    dir4saving = 'path2checkpoint/checkpoints'
+    from pathlib import PurePath
+    dir4saving = PurePath('path2checkpoint', chk_pt)
     os.makedirs(dir4saving, exist_ok = True)
 
     filepath = os.path.join(dir4saving, name4saving)
