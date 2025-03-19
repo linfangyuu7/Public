@@ -1,71 +1,48 @@
-# -*- coding: utf-8 -*-
-
 '''
-LeNet-1 architecture
+https://github.com/shap/shap/blob/master/notebooks/image_examples/image_classification/Front%20Page%20DeepExplainer%20MNIST%20Example.ipynb
 '''
-#logits version
-#For each sample, the model returns a vector of "logits" or "log-odds" scores, one for each class.
+# this is the code from here --> https://github.com/keras-team/keras/blob/master/examples/demo_mnist_convnet.py
+import os
 
-from __future__ import print_function
-import tensorflow as tf
-from keras.datasets import mnist
-from keras.layers import Conv2D, MaxPooling2D, Input, Dense, Activation, Flatten
-from keras.models import Model
+import keras
 import numpy as np
-#import matplotlib.pyplot as plt
-import datetime, os
+import tensorflow as tf
+from keras import layers
+from sklearn.model_selection import train_test_split
+
+# Model / data parameters
+num_classes = 10
+input_shape = (28, 28, 1)
 # constants
-WEIGHTS='LeNet_1.h5'
-img_rows, img_cols = 28, 28
-nb_classes = 10
+WEIGHTS='LeNet_2.weights.h5'
+batch_size = 256
 kernel_size = (5, 5)
-#The losses.SparseCategoricalCrossentropy loss takes a vector of logits and a True index and returns a scalar loss for each example.
-loss_fn = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
 
-def get_data_set():
-  # get training, validation and test sets
-  print('Typically, an image format has one dimension for rows (height), one for columns (width) and one for channels.')
-  print('However, we prepare another dimension to indicate how many samples. This is preferred by Tensorflow')
-  print('The image data has been normalized to between -1 and +1')
-  with open('y_train.npy', 'rb') as f:
-    y_train = np.load(f)
-  with open('x_train.npy', 'rb') as f:
-    x_train = np.load(f)
-  with open('y_test.npy', 'rb') as f:
-    y_test = np.load(f)
-  with open('x_test.npy', 'rb') as f:
-    x_test = np.load(f)
- # split test set into 2
-  x, y = np.array_split(x_test, 2), np.array_split(y_test, 2)
-  return (x_train, y_train), (x[0], y[0]), (x[1], y[1]) 
+      # block1
+      layers.Conv2D(4, kernel_size, activation='relu', padding='same', name='block1_conv1'
+        , input_shape=input_shape), #need to specify the input shape in advance in order to load weights
+      layers.MaxPooling2D(pool_size=(2, 2), name='block1_pool1'),
+      # block2
+      layers.Flatten(name='flatten'),
 
-def get_clean_data_set():
-  # get training, validation and test sets
-  print('Typically, an image format has one dimension for rows (height), one for columns (width) and one for channels.')
-  print('However, we prepare another dimension to indicate how many samples. This is preferred by Tensorflow')
-  print('The image data has been normalized to between -1 and +1')
-  with open('y_train_new.npy', 'rb') as f:
-    y_train = np.load(f)
-  with open('x_train_new.npy', 'rb') as f:
-    x_train = np.load(f)
-  return (x_train, y_train)
-    
 def architecture():
     #Define the model here
-    input_shape = (img_rows, img_cols, 1)
-
-    model = tf.keras.models.Sequential([
-      # block1
-      tf.keras.layers.Conv2D(4, kernel_size, activation='relu', padding='same', name='block1_conv1'
-        , input_shape=input_shape), #need to specify the input shape in advance in order to load weights
-      tf.keras.layers.MaxPooling2D(pool_size=(2, 2), name='block1_pool1'),
-      # block2
-      tf.keras.layers.Flatten(name='flatten'),
-      tf.keras.layers.Dense(nb_classes, activation="softmax"),
-    ])
+    model = keras.Sequential(
+        [
+          layers.Input(shape=input_shape),
+          # block1
+          layers.Conv2D(4, kernel_size, activation='relu', padding='same', name='block1_conv1'
+            , input_shape=input_shape), #need to specify the input shape in advance in order to load weights
+          layers.MaxPooling2D(pool_size=(2, 2), name='block1_pool1'),
+          # block2
+          layers.Flatten(name='flatten'),
+          layers.Dense(num_classes)#, activation="softmax"),
+        ]
+    )
     return model
-
-def new(x_train, y_train, x_val, y_val, h5=WEIGHTS, nb_epoch = 20):
+    
+def new(x_train, y_train, h5=WEIGHTS, nb_epoch = 20, 
+                      chk_pt = 'checkpoint', name4saving = 'epoch_{epoch:02d}.weights.h5', patience = 10):
     #train a new model
     model = architecture()
 
@@ -87,31 +64,41 @@ def new(x_train, y_train, x_val, y_val, h5=WEIGHTS, nb_epoch = 20):
     #This loss is equal to the negative log probability of the the true class: It is zero if the model is sure of the correct class.
     #This untrained model gives probabilities close to random (1/10 for each class), so the initial loss should be close to -tf.log(1/10) ~= 2.3.
     print("Check loss (should be close to 2.3): ", loss_fn(y_train[:1], predictions).numpy())
-
-    # compiling with your desired optimizer, loss function and metrics
-    model.compile(optimizer='adam', loss=loss_fn, metrics=['accuracy'])
-
-    # training
-    return train(model, x_train, y_train, x_val, y_val, h5, nb_epoch)
-
-def train(model, x_train, y_train, x_val, y_val, h5, nb_epoch):
-    # helper function for training a new model
-    logdir = os.path.join("logs", datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
-    tensorboard_callback = tf.keras.callbacks.TensorBoard(logdir, histogram_freq=1)
-    model.fit(x_train, y_train, validation_data=(x_val, y_val), batch_size=256, epochs=nb_epoch, 
-      callbacks=[tensorboard_callback], verbose=1)
     
+    # training
+    return train(model, x_train, y_train, h5, nb_epoch, chk_pt, name4saving, patience)
+
+def train(model, x_train, y_train, h5, nb_epoch, chk_pt, name4saving = 'epoch_{epoch:02d}-val_loss-{val_loss:.4f}.weights.h5', patience = 10):
+    # helper function for training a new model
+    model = compile(model)
+    
+    # defining paths and callbacks
+    from pathlib import PurePath
+    dir4saving = PurePath('path2checkpoint', chk_pt)
+    os.makedirs(dir4saving, exist_ok = True)
+
+    filepath = os.path.join(dir4saving, name4saving)
+    mcCallBack_loss = keras.callbacks.ModelCheckpoint(filepath, monitor = 'val_loss',
+                                                verbose = 1, save_weights_only = True,)
+    esCallBack = keras.callbacks.EarlyStopping(monitor = 'val_loss', verbose = 1, patience=patience)
+    hist = model.fit(x_train, y_train, batch_size=batch_size, epochs=nb_epoch, validation_split=0.2,
+              callbacks=[esCallBack, mcCallBack_loss])    
     # save model
     model.save_weights(h5)
     return model
+def compile(model):
+  # helper function for compiling a model
+  model.compile( optimizer=keras.optimizers.Adam(),
+    loss=keras.losses.SparseCategoricalCrossentropy(from_logits=True),
+    metrics=['accuracy'], )
+  return model
 
 def load(h5):
     #load a model with the h5 weight file
     model = architecture()
     model.load_weights(h5)
-    print('LeNet-1 loaded')
     # compiling so that you may subsequently use the desired metrics for evaluation
-    model.compile(optimizer='adam', loss=loss_fn, metrics=['accuracy'])
+    model = compile(model)
     return model
     
 def evaluate(model, x, y):
@@ -122,14 +109,14 @@ def evaluate(model, x, y):
     print('Overall Test loss:', score[0])
     print('Overall Test accuracy:', score[1])
 
+def get_clean_data_set():
+  # get training, validation and test sets
+  print('Typically, an image format has one dimension for rows (height), one for columns (width) and one for channels.')
+  print('However, we prepare another dimension to indicate how many samples. This is preferred by Tensorflow')
+  print('The image data has been normalized to between -1 and +1')
+  with open('y_train_new.npy', 'rb') as f:
+    Y = np.load(f)
+  with open('x_train_new.npy', 'rb') as f:
+    X = np.load(f)
+  return train_test_split(X, Y, test_size=0.32, random_state=42)
 
-def display_pattern(model, input_image, input_label, remarks=''):
-  #display the image in Jupyter notebook  
-  p = model(input_image).numpy() #convert from tensor to numpy
-  prediction = np.argmax(p)
-
-  a = np.squeeze(input_image)
-  plt.figure()
-  plt.imshow(a, cmap='gray', vmin=-1, vmax=1)
-  plt.title('{}\n Ground truth: {} \n Predicted: {}'.format(remarks, input_label, prediction))
-  plt.show()
