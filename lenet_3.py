@@ -34,7 +34,7 @@ def architecture():
     )
     return model
 
-def new(x_train, y_train, x_val, y_val, h5=WEIGHTS, nb_epoch = 20):
+def new(x_train, y_train, h5=WEIGHTS, nb_epoch = 20):
     #train a new model
     model = architecture()
 
@@ -56,11 +56,12 @@ def new(x_train, y_train, x_val, y_val, h5=WEIGHTS, nb_epoch = 20):
     #This loss is equal to the negative log probability of the the true class: It is zero if the model is sure of the correct class.
     #This untrained model gives probabilities close to random (1/10 for each class), so the initial loss should be close to -tf.log(1/10) ~= 2.3.
     print("Check loss (should be close to 2.3): ", loss_fn(y_train[:1], predictions).numpy())
-
+    print(f'nb_epoch: {nb_epoch}')
+    
     # training
-    return train(model, x_train, y_train, x_val, y_val, h5, nb_epoch)
+    return train(model, x_train, y_train, h5, nb_epoch)
 
-def train(model, x_train, y_train, h5, epochs, name4saving = 'epoch_{epoch:02d}-val_loss-{val_loss:.4f}.weights.h5', patience = 10):
+def train(model, x_train, y_train, h5, nb_epoch, name4saving = 'epoch_{epoch:02d}-val_loss-{val_loss:.4f}.weights.h5', patience = 10):
     # helper function for training a new model
     model = compile(model)
     
@@ -72,7 +73,8 @@ def train(model, x_train, y_train, h5, epochs, name4saving = 'epoch_{epoch:02d}-
     mcCallBack_loss = keras.callbacks.ModelCheckpoint(filepath, monitor = 'val_loss',
                                                 verbose = 1, save_weights_only = True,)
     esCallBack = keras.callbacks.EarlyStopping(monitor = 'val_loss', verbose = 1, patience=patience)
-    hist = model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, validation_split=0.2,
+    print(f'nb_epoch: {nb_epoch}')
+    hist = model.fit(x_train, y_train, batch_size=batch_size, epochs=nb_epoch, validation_split=0.2,
               callbacks=[esCallBack, mcCallBack_loss])    
     # save model
     model.save_weights(h5)
