@@ -18,13 +18,6 @@ WEIGHTS='LeNet_2.weights.h5'
 batch_size = 256
 kernel_size = (5, 5)
 
-      # block1
-      layers.Conv2D(4, kernel_size, activation='relu', padding='same', name='block1_conv1'
-        , input_shape=input_shape), #need to specify the input shape in advance in order to load weights
-      layers.MaxPooling2D(pool_size=(2, 2), name='block1_pool1'),
-      # block2
-      layers.Flatten(name='flatten'),
-
 def architecture():
     #Define the model here
     model = keras.Sequential(
